@@ -100,18 +100,47 @@ export const generateMockAuditResult = (audit: Audit): Audit => {
       id: `page-${i}`,
       url: pageUrl,
       statusCode: 200,
+      depth: i,
       scores,
       issues: pageIssues,
       seoData: {
         title: isHome ? "Home Page - Best Service" : `Page ${i} Title`,
-        description: Math.random() > 0.5 ? "A good description." : "",
-        h1Count: 1,
-        wordCount: 500 + Math.floor(Math.random() * 1000)
+        metaDescription: Math.random() > 0.5 ? "A good description." : "",
+        h1Text: `Heading ${i}`,
+        wordCount: 500 + Math.floor(Math.random() * 1000),
+        imagesWithoutAlt: 0,
+        canonical: pageUrl,
+        robots: 'index,follow'
+      },
+      performanceData: {
+        performanceScore: scores.performance,
+        largestContentfulPaintMs: 2500,
+        firstContentfulPaintMs: 1200,
+        totalBlockingTimeMs: 100,
+        cumulativeLayoutShift: 0.05,
+        strategy: 'mobile'
+      },
+      accessibilityData: {
+        hasLangAttribute: true,
+        landmarks: { main: true, nav: true, header: true, footer: true },
+        labeledInputs: 2,
+        unlabeledInputs: 0
+      },
+      contentData: {
+        pageType: isHome ? 'home' : 'generic',
+        internalLinkCount: 3,
+        externalLinkCount: 1,
+        brokenLinks: [],
+        inboundLinks: i === 0 ? 2 : 1,
+        outboundLinks: 3
       },
       designUxData: {
-        fontFamilies: 3,
-        hasPrimaryCtaAboveFold: isHome ? false : true, // Simulate the error on homepage
-        mobileUsabilityScore: 0.85
+        hasNavigation: true,
+        primaryCtaFound: !isHome || Math.random() > 0.3,
+        primaryCtaAboveFold: isHome ? false : true,
+        fontCount: 3,
+        colorCount: 4,
+        hasViewportMeta: true
       }
     });
   }

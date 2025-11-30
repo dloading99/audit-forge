@@ -1,4 +1,56 @@
-import { Audit, PageData, Scores, Issue } from '../types.js';
+import { Issue, PageData, Scores } from '../types.js';
+
+const severityPenalty: Record<Issue['severity'], number> = {
+  critical: 25,
+  major: 15,
+  minor: 7
+};
+
+function clampScore(score: number): number {
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function scoreCategory(base: number, issues: Issue[], category: Issue['category'], extraPenalty = 0): number {
+  const totalPenalty = issues
+    .filter(issue => issue.category === category)
+    .reduce((acc, issue) => acc + severityPenalty[issue.severity], 0);
+  return clampScore(base - totalPenalty - extraPenalty);
+}
+
+function scorePerformance(performanceData: PageData['performanceData'], issues: Issue[]): number {
+  if (performanceData?.performanceScore !== undefined) {
+    // Blend PSI score with issue penalties
+    const penalty = issues
+      .filter(i => i.category === 'performance')
+      .reduce((acc, i) => acc + severityPenalty[i.severity] / 2, 0);
+    return clampScore(performanceData.performanceScore - penalty);
+  }
+
+  return scoreCategory(80, issues, 'performance');
+}
+
+export function calculatePageScores(page: PageData): Scores {
+  const { issues, seoData, contentData, designUxData, performanceData, accessibilityData } = page;
+
+  const seoPenalty = (seoData?.wordCount && seoData.wordCount < 120 ? 5 : 0);
+  const seo = scoreCategory(100, issues, 'seo', seoPenalty);
+
+  const accessibility = scoreCategory(100, issues, 'accessibility', accessibilityData?.unlabeledInputs ? 5 : 0);
+
+  const contentPenalty = (contentData && contentData.internalLinkCount === 0 ? 10 : 0) +
+    (contentData && contentData.brokenLinks.length > 0 ? 5 : 0) +
+    (contentData && contentData.inboundLinks === 0 && page.depth > 0 ? 10 : 0);
+  const content = scoreCategory(95, issues, 'content', contentPenalty);
+
+  const uxPenalty = (designUxData && !designUxData.hasNavigation ? 10 : 0);
+  const uxDesign = scoreCategory(100, issues, 'uxDesign', uxPenalty);
+
+  const performance = scorePerformance(performanceData, issues);
+
+  const overall = clampScore((seo + accessibility + content + uxDesign + performance) / 5);
+
+  return { overall, seo, performance, accessibility, content, uxDesign };
+}
 
 export function calculateAuditScores(pages: PageData[]): { scores: Scores, issuesSummary: any } {
   if (pages.length === 0) {
@@ -8,20 +60,31 @@ export function calculateAuditScores(pages: PageData[]): { scores: Scores, issue
     };
   }
 
-  // Average scores across pages
-  const sumScores = (key: keyof Scores) => pages.reduce((acc, p) => acc + p.scores[key], 0);
-  
-  const seo = Math.round(sumScores('seo') / pages.length);
-  const performance = Math.round(sumScores('performance') / pages.length);
-  const accessibility = Math.round(sumScores('accessibility') / pages.length);
-  const content = Math.round(sumScores('content') / pages.length);
-  const uxDesign = Math.round(sumScores('uxDesign') / pages.length);
-  
-  const overall = Math.round((seo + performance + accessibility + content + uxDesign) / 5);
+  const weightedTotals: Scores = { overall: 0, seo: 0, performance: 0, accessibility: 0, content: 0, uxDesign: 0 };
+  let totalWeight = 0;
 
-  // Issues summary
+  for (const page of pages) {
+    const weight = 1 / (1 + (page.depth ?? 0));
+    totalWeight += weight;
+    weightedTotals.overall += page.scores.overall * weight;
+    weightedTotals.seo += page.scores.seo * weight;
+    weightedTotals.performance += page.scores.performance * weight;
+    weightedTotals.accessibility += page.scores.accessibility * weight;
+    weightedTotals.content += page.scores.content * weight;
+    weightedTotals.uxDesign += page.scores.uxDesign * weight;
+  }
+
+  const scores: Scores = {
+    overall: clampScore(weightedTotals.overall / totalWeight),
+    seo: clampScore(weightedTotals.seo / totalWeight),
+    performance: clampScore(weightedTotals.performance / totalWeight),
+    accessibility: clampScore(weightedTotals.accessibility / totalWeight),
+    content: clampScore(weightedTotals.content / totalWeight),
+    uxDesign: clampScore(weightedTotals.uxDesign / totalWeight)
+  };
+
   const allIssues = pages.flatMap(p => p.issues);
-  const summary = {
+  const issuesSummary = {
     critical: allIssues.filter(i => i.severity === 'critical').length,
     major: allIssues.filter(i => i.severity === 'major').length,
     minor: allIssues.filter(i => i.severity === 'minor').length,
@@ -34,8 +97,5 @@ export function calculateAuditScores(pages: PageData[]): { scores: Scores, issue
     }
   };
 
-  return {
-    scores: { overall, seo, performance, accessibility, content, uxDesign },
-    issuesSummary: summary
-  };
+  return { scores, issuesSummary };
 }

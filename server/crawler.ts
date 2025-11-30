@@ -1,19 +1,36 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { URL } from 'url';
+import { CrawlOptions, PageResult } from '../types.js';
 
-export interface CrawlResult {
+interface QueueItem {
   url: string;
-  html: string;
-  statusCode: number;
-  error?: string;
+  depth: number;
 }
 
-export async function crawlSite(startUrl: string, maxPages: number = 30): Promise<CrawlResult[]> {
+const DEFAULT_OPTIONS: Required<CrawlOptions> = {
+  maxPages: 20,
+  maxDepth: 2,
+  timeoutMs: 12000
+};
+
+function isValidLink(href: string): boolean {
+  const trimmed = href.trim();
+  if (!trimmed) return false;
+  const lower = trimmed.toLowerCase();
+  return !lower.startsWith('mailto:') &&
+    !lower.startsWith('tel:') &&
+    !lower.startsWith('javascript:') &&
+    !lower.startsWith('#') &&
+    !lower.startsWith('data:');
+}
+
+export async function crawlSite(startUrl: string, options: CrawlOptions = {}): Promise<PageResult[]> {
+  const { maxPages, maxDepth, timeoutMs } = { ...DEFAULT_OPTIONS, ...options };
   const visited = new Set<string>();
-  const queue: string[] = [startUrl];
-  const results: CrawlResult[] = [];
-  
+  const queue: QueueItem[] = [{ url: startUrl, depth: 0 }];
+  const results: PageResult[] = [];
+
   let domain: string;
   try {
     domain = new URL(startUrl).hostname;
@@ -22,8 +39,10 @@ export async function crawlSite(startUrl: string, maxPages: number = 30): Promis
   }
 
   while (queue.length > 0 && results.length < maxPages) {
-    const currentUrl = queue.shift();
-    if (!currentUrl || visited.has(currentUrl)) continue;
+    const next = queue.shift();
+    if (!next) continue;
+    const { url: currentUrl, depth } = next;
+    if (visited.has(currentUrl)) continue;
 
     visited.add(currentUrl);
     console.log(`Crawling: ${currentUrl}`);
@@ -34,53 +53,60 @@ export async function crawlSite(startUrl: string, maxPages: number = 30): Promis
           'User-Agent': 'AuditForgeBot/1.0',
           'Accept': 'text/html'
         },
-        timeout: 10000,
-        validateStatus: () => true // Don't throw on 4xx/5xx
+        timeout: timeoutMs,
+        validateStatus: () => true
       });
 
       const contentType = response.headers['content-type'] || '';
-      if (!contentType.includes('text/html')) {
-        continue;
-      }
+      const isHtml = contentType.includes('text/html');
+      const html = typeof response.data === 'string' && isHtml ? response.data : '';
 
-      const html = typeof response.data === 'string' ? response.data : '';
-      
-      results.push({
-        url: currentUrl,
-        html,
-        statusCode: response.status
-      });
+      const internalLinks: string[] = [];
+      const externalLinks: string[] = [];
 
-      // Extract links if status is good
-      if (response.status >= 200 && response.status < 300) {
+      if (html && response.status >= 200 && response.status < 400) {
         const $ = cheerio.load(html);
         $('a').each((_, element) => {
           const href = $(element).attr('href');
-          if (href) {
-            try {
-              const absoluteUrl = new URL(href, currentUrl).href;
-              const linkDomain = new URL(absoluteUrl).hostname;
-              
-              // Only internal links, http/https, not visited, not already in queue
-              if (linkDomain === domain && 
-                  (absoluteUrl.startsWith('http:') || absoluteUrl.startsWith('https:')) &&
-                  !visited.has(absoluteUrl) && 
-                  !queue.includes(absoluteUrl) &&
-                  !absoluteUrl.match(/\.(pdf|jpg|png|gif|css|js|zip)$/i)) {
-                queue.push(absoluteUrl);
+          if (!href || !isValidLink(href)) return;
+          try {
+            const absoluteUrl = new URL(href, currentUrl).href;
+            const linkDomain = new URL(absoluteUrl).hostname;
+            const isInternal = linkDomain === domain;
+
+            if (isInternal) {
+              internalLinks.push(absoluteUrl);
+              const shouldQueue = depth < maxDepth &&
+                !visited.has(absoluteUrl) &&
+                !queue.some(item => item.url === absoluteUrl);
+              if (shouldQueue) {
+                queue.push({ url: absoluteUrl, depth: depth + 1 });
               }
-            } catch (e) {
-              // Ignore invalid URLs
+            } else {
+              externalLinks.push(absoluteUrl);
             }
+          } catch (err) {
+            // Ignore invalid URLs
           }
         });
       }
 
+      results.push({
+        url: currentUrl,
+        html,
+        statusCode: response.status,
+        depth,
+        internalLinks,
+        externalLinks
+      });
     } catch (error: any) {
       results.push({
         url: currentUrl,
         html: '',
         statusCode: 0,
+        depth,
+        internalLinks: [],
+        externalLinks: [],
         error: error.message
       });
     }

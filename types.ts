@@ -25,26 +25,85 @@ export interface Issue {
   pageUrl?: string;
 }
 
+export interface CrawlOptions {
+  maxPages?: number;
+  maxDepth?: number;
+  timeoutMs?: number;
+}
+
+export interface PageResult {
+  url: string;
+  statusCode: number;
+  html: string;
+  depth: number;
+  internalLinks: string[];
+  externalLinks: string[];
+  error?: string;
+}
+
+export interface SeoData {
+  title?: string;
+  metaDescription?: string;
+  h1Text?: string;
+  wordCount: number;
+  imagesWithoutAlt: number;
+  canonical?: string;
+  robots?: string;
+}
+
+export interface PerformanceData {
+  performanceScore?: number;
+  firstContentfulPaintMs?: number;
+  largestContentfulPaintMs?: number;
+  totalBlockingTimeMs?: number;
+  cumulativeLayoutShift?: number;
+  strategy?: 'mobile' | 'desktop';
+  error?: string;
+}
+
+export interface AccessibilityData {
+  hasLangAttribute: boolean;
+  landmarks: {
+    main: boolean;
+    nav: boolean;
+    header: boolean;
+    footer: boolean;
+  };
+  labeledInputs: number;
+  unlabeledInputs: number;
+}
+
+export interface ContentStructureData {
+  pageType: string;
+  internalLinkCount: number;
+  externalLinkCount: number;
+  brokenLinks: string[];
+  inboundLinks: number;
+  outboundLinks: number;
+}
+
+export interface DesignUxData {
+  hasNavigation: boolean;
+  primaryCtaFound: boolean;
+  primaryCtaAboveFold: boolean;
+  fontCount: number;
+  colorCount: number;
+  hasViewportMeta: boolean;
+}
+
 export interface PageData {
   id: string;
   url: string;
   statusCode: number;
+  depth: number;
   scores: Scores;
   issues: Issue[];
   // Specific Analyzer Data
-  seoData?: {
-    title: string;
-    description: string;
-    h1Count: number;
-    wordCount: number;
-  };
-  designUxData?: {
-    fontFamilies: number;
-    hasPrimaryCtaAboveFold: boolean;
-    mobileUsabilityScore?: number;
-    hasViewportMeta?: boolean;
-    hasPrimaryCta?: boolean;
-  };
+  seoData?: SeoData;
+  performanceData?: PerformanceData | null;
+  accessibilityData?: AccessibilityData;
+  contentData?: ContentStructureData;
+  designUxData?: DesignUxData;
 }
 
 export interface Audit {

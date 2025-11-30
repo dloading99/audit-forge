@@ -1,7 +1,10 @@
 import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
 import { storage } from './storage.js';
 import { startAudit } from './runner.js';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,9 +41,9 @@ app.post('/api/audits', async (req, res) => {
     }
 
     const newAudit = storage.create(url);
-    
+
     // Trigger background processing
-    startAudit(newAudit.id, maxPages || 30).catch(err => {
+    startAudit(newAudit.id, maxPages || 20).catch(err => {
       console.error(`Audit ${newAudit.id} failed to start:`, err);
     });
 
