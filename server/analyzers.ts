@@ -12,11 +12,19 @@ interface AnalyzerOutput {
 }
 
 const CTA_KEYWORDS = [
-  'prenota', 'chiama', 'ordina', 'contattaci', 'acquista', 'book', 'order', 'call', 'contact', 'buy', 'get started', 'sign up',
-  'registrati', 'richiedi', 'demo'
+  'prenota',
+  'ordina',
+  'chiama',
+  'contattaci',
+  'acquista',
+  'book now',
+  'order now',
+  'call us',
+  'contact',
+  'buy now'
 ];
 
-const CTA_ABOVE_FOLD_THRESHOLD = 800; // characters into HTML
+const CTA_ABOVE_FOLD_THRESHOLD = 5000; // characters into HTML
 
 function createIssue(
   category: Issue['category'],
@@ -165,7 +173,7 @@ export function analyzeAccessibility(html: string, url: string): { data: Accessi
 
 // Content & Structure Analyzer
 export async function analyzeContentStructure(page: PageResult): Promise<{ data: ContentStructureData; issues: Issue[] }> {
-  const { html, url, internalLinks, externalLinks } = page;
+  const { html, url, internalLinks, externalLinks, depth } = page;
   const $ = cheerio.load(html);
   const title = $('title').first().text().toLowerCase();
   const h1 = $('h1').first().text().toLowerCase();
@@ -181,20 +189,22 @@ export async function analyzeContentStructure(page: PageResult): Promise<{ data:
 
   // Basic broken link detection for a handful of internal links to reduce network noise
   const brokenLinks: string[] = [];
-  const linksToCheck = internalLinks.slice(0, 5);
-  for (const link of linksToCheck) {
-    try {
-      const head = await axios.head(link, { maxRedirects: 2, timeout: 5000, validateStatus: () => true });
-      if (head.status >= 400) {
+  if (depth <= 1) {
+    const linksToCheck = internalLinks.slice(0, 5);
+    for (const link of linksToCheck) {
+      try {
+        const head = await axios.head(link, { maxRedirects: 2, timeout: 5000, validateStatus: () => true });
+        if (head.status >= 400) {
+          brokenLinks.push(link);
+        }
+      } catch (err) {
         brokenLinks.push(link);
       }
-    } catch (err) {
-      brokenLinks.push(link);
     }
-  }
 
-  if (brokenLinks.length > 0) {
-    issues.push(createIssue('content', 'BROKEN_INTERNAL_LINK', 'major', `${brokenLinks.length} internal links appear broken`, url));
+    if (brokenLinks.length > 0) {
+      issues.push(createIssue('content', 'BROKEN_INTERNAL_LINK', 'major', `${brokenLinks.length} internal links appear broken`, url));
+    }
   }
 
   const data: ContentStructureData = {
@@ -276,11 +286,13 @@ export async function analyzePage(page: PageResult): Promise<AnalyzerOutput> {
   const accessibility = analyzeAccessibility(html, url);
   const ux = analyzeDesignUx(html, url);
   const content = await analyzeContentStructure(page);
-  const performance = await analyzePerformance(url);
+  const { data: performanceData, issues: performanceIssues } = page.depth === 0
+    ? await analyzePerformance(url)
+    : { data: null as PerformanceData | null, issues: [] as Issue[] };
 
   const issues = [
     ...seo.issues,
-    ...performance.issues,
+    ...performanceIssues,
     ...accessibility.issues,
     ...content.issues,
     ...ux.issues
@@ -289,7 +301,7 @@ export async function analyzePage(page: PageResult): Promise<AnalyzerOutput> {
   return {
     issues,
     seoData: seo.data,
-    performanceData: performance.data,
+    performanceData,
     accessibilityData: accessibility.data,
     contentData: content.data,
     designUxData: ux.data
