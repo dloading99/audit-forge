@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { randomUUID } from 'crypto';
 import { Audit, AuditStatus } from '../types.js';
 
 // Simple JSON file storage
@@ -57,7 +58,7 @@ export const storage = {
   create: (url: string): Audit => {
     const audits = readDb();
     const newAudit: Audit = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       url,
       status: AuditStatus.QUEUED,
       createdAt: new Date().toISOString(),
