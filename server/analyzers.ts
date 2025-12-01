@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { AccessibilityData, ContentStructureData, DesignUxData, Issue, PerformanceData, SeoData, PageResult } from '../types.js';
+import { AccessibilityData, ContentStructureData, DesignUxData, Issue, PerformanceData, SeoData, PageResult } from '../types';
 
 interface AnalyzerOutput {
   issues: Issue[];

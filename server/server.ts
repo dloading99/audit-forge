@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { storage } from './storage.js';
-import { startAudit } from './runner.js';
+import { storage } from './storage';
+import { startAudit } from './runner';
 
 dotenv.config();
 

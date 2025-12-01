@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { URL } from 'url';
-import { CrawlOptions, PageResult } from '../types.js';
+import { CrawlOptions, PageResult } from '../types';
 
 interface QueueItem {
   url: string;

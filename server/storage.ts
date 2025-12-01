@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import { Audit, AuditStatus } from '../types.js';
+import { Audit, AuditStatus } from '../types';
 
 // Simple JSON file storage
 // Use process.cwd() to ensure we write to the project folder, not root

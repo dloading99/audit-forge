@@ -1,4 +1,4 @@
-import { Issue, PageData, Scores } from '../types.js';
+import { Issue, PageData, Scores } from '../types';
 
 const severityPenalty: Record<Issue['severity'], number> = {
   critical: 25,

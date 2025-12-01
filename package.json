@@ -2,15 +2,14 @@
   "name": "audit-forge",
   "private": true,
   "version": "1.0.0",
-  "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n client,server \"npm:dev:client\" \"npm:dev:server\"",
-    "dev:client": "vite",
-    "dev:server": "ts-node --esm server/server.ts",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "server": "ts-node --esm server/server.ts"
-  },
+  "dev": "concurrently -k -n client,server \"npm:dev:client\" \"npm:dev:server\"",
+  "dev:client": "vite",
+  "dev:server": "TS_NODE_PROJECT=tsconfig.server.json ts-node server/server.ts",
+  "build": "tsc && vite build",
+  "preview": "vite preview",
+  "server": "TS_NODE_PROJECT=tsconfig.server.json ts-node server/server.ts"
+},
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -39,3 +38,4 @@
     "concurrently": "^8.2.2"
   }
 }
+

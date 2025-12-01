@@ -1,9 +1,9 @@
 import { randomUUID } from 'crypto';
-import { PageResult, AuditStatus, PageData, Scores } from '../types.js';
-import { crawlSite } from './crawler.js';
-import { analyzePage } from './analyzers.js';
-import { calculateAuditScores, calculatePageScores } from './scoring.js';
-import { storage } from './storage.js';
+import { PageResult, AuditStatus, PageData, Scores } from '../types';
+import { crawlSite } from './crawler';
+import { analyzePage } from './analyzers';
+import { calculateAuditScores, calculatePageScores } from './scoring';
+import { storage } from './storage';
 
 function buildInboundLinkMap(pages: PageResult[]): Map<string, number> {
   const inbound = new Map<string, number>();
